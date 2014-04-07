@@ -169,8 +169,9 @@ void eval(char *cmdline)
     return;
 
   if (!builtin_cmd(argv)){
+
     if ((pid = fork()) == 0){
-      if (execve(argv[0], argv, environ) < 0){
+      if (execvp(argv[0], argv) < 0){
         printf("%s: Command not found.\n", argv[0]);
         exit(0);
       }
@@ -179,7 +180,7 @@ void eval(char *cmdline)
     if (!bg){
       int status;
       if (waitpid(pid, &status, 0) < 0)
-        unix_error("waitfg: waitpid error");
+        unix_error("waitfg:waitpid error");
     }
 
     else
@@ -197,7 +198,7 @@ void eval(char *cmdline)
 // string comparisons; however, the do_bgfg routine will need 
 // to use the argv array as well to look for a job number.
 //
-int builtin_cmd(char *argv[]) 
+int builtin_cmd(char **argv) 
 {
   string cmd(argv[0]);
 
