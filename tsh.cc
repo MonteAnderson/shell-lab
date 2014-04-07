@@ -20,7 +20,6 @@ using namespace std;
 #include "globals.h"
 #include "jobs.h"
 #include "helper-routines.h"
-#include "csapp.h"
 
 //
 // Needed global variable definitions
@@ -158,16 +157,14 @@ void eval(char *cmdline)
   // use below to launch a process.
   //
   char *argv[MAXARGS];
-  char buf[MAXLINE];
-  int bg;
-  pid_t pid;
 
-  strcpy(buf, cmdline);
-  bg = parseline(buf, argv);
-
+  int bg = parseline(cmdline, argv);
+ 
   if (argv[0] == NULL)
     return;
 
+  pid_t pid;
+  
   if (!builtin_cmd(argv)){
 
     if ((pid = fork()) == 0){
