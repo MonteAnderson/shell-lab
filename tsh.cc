@@ -167,7 +167,9 @@ void eval(char *cmdline)
   if(!builtin_cmd(argv)){
 
     if ((pid = fork()) == 0){
-
+      
+      printf("Process: %d\n", getpid());
+      printf("Parent : %d\n", getppid());
       if(execve(argv[0], argv, environ) < 0){
         printf("%s: Command not found.\n", argv[0]);
         exit(0);
@@ -289,8 +291,7 @@ void waitfg(pid_t pid)
 //
 void sigchld_handler(int sig)
 {
-  printf("Shell recieved SIGINT\n");
-  exit(0);
+  return;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -301,7 +302,9 @@ void sigchld_handler(int sig)
 //
 void sigint_handler(int sig)
 {
-  return;
+  //delete job later
+  printf("Shell recieved SIGINT\n");
+  exit(0);
 }
 
 /////////////////////////////////////////////////////////////////////////////
