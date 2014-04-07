@@ -169,7 +169,7 @@ void eval(char *cmdline)
     return;
 
   if (!builtin_cmd(argv)){
-    if (pid = fork() == 0){
+    if ((pid = fork()) == 0){
       if (execve(argv[0], argv, environ) < 0){
         printf("%s: Command not found.\n", argv[0]);
         exit(0);
@@ -201,8 +201,18 @@ int builtin_cmd(char *argv[])
 {
   string cmd(argv[0]);
 
+  if (cmd == "fg")
+    do_bgfg(argv);
+
+  if (cmd == "gb")
+    do_bgfg(argv);
+
+  if (cmd == "jobs")
+    exit(0);
+
   if (cmd == "quit")
     exit(0);
+  
   if (cmd != "&")
     return 1;
 
