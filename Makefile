@@ -6,7 +6,7 @@ TSH = ./tsh
 TSHREF = ./tshref
 TSHARGS = "-p"
 CC = gcc
-CXX = g++-4.8
+CXX = g++
 
 ##
 ## This assignment does not depend on ia32 vs. ia64,
