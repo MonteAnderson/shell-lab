@@ -20,6 +20,7 @@ using namespace std;
 #include "globals.h"
 #include "jobs.h"
 #include "helper-routines.h"
+#include "csapp.h"
 
 //
 // Needed global variable definitions
@@ -163,6 +164,7 @@ void eval(char *cmdline)
 
   strcpy(buf, cmdline);
   bg = parseline(buf, argv);
+
   if (argv[0] == NULL)
     return;
 
@@ -195,11 +197,11 @@ void eval(char *cmdline)
 // string comparisons; however, the do_bgfg routine will need 
 // to use the argv array as well to look for a job number.
 //
-int builtin_cmd(char **argv) 
+int builtin_cmd(char *argv[]) 
 {
   string cmd(argv[0]);
 
-  if (cmd != "quit")
+  if (cmd == "quit")
     exit(0);
   if (cmd != "&")
     return 1;
