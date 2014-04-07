@@ -17,7 +17,6 @@ using namespace std;
 #include <errno.h>
 #include <string>
 
-#include "csapp.h"
 #include "globals.h"
 #include "jobs.h"
 #include "helper-routines.h"
