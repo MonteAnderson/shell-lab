@@ -302,8 +302,9 @@ void sigchld_handler(int sig)
 //    to the foreground job.  
 //
 void sigint_handler(int sig) 
-{
-  return;
+{ 
+  printf("Shell recieved SIGINT\n");
+  exit(0);
 }
 
 /////////////////////////////////////////////////////////////////////////////
