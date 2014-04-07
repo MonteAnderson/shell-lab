@@ -17,6 +17,7 @@ using namespace std;
 #include <errno.h>
 #include <string>
 
+#include "csapp.h"
 #include "globals.h"
 #include "jobs.h"
 #include "helper-routines.h"
@@ -27,6 +28,7 @@ using namespace std;
 
 static char prompt[] = "tsh> ";
 int verbose = 0;
+#define MAXARGS 128
 
 //
 // You need to implement the functions eval, builtin_cmd, do_bgfg,
@@ -156,15 +158,32 @@ void eval(char *cmdline)
   // use below to launch a process.
   //
   char *argv[MAXARGS];
+  char buf[MAXLINE];
+  int bg;
+  pid_t pid;
 
-  //
-  // The 'bg' variable is TRUE if the job should run
-  // in background mode or FALSE if it should run in FG
-  //
-  int bg = parseline(cmdline, argv); 
-  if (argv[0] == NULL)  
-    return;   /* ignore empty lines */
+  strcpy(buf, cmdline);
+  bg = parseline(buf, argv);
+  if (argv[0] == NULL)
+    return;
 
+  if (!builtin_cmd(argv)){
+    if (pid = fork() == 0){
+      if (execve(argv[0], argv, environ) < 0){
+        printf("%s: Command not found.\n", argv[0]);
+        exit(0);
+      }
+    }
+
+    if (!bg){
+      int status;
+      if (waitpid(pid, &status, 0) < 0)
+        unix_error("waitfg: waitpid error");
+    }
+
+    else
+      printf("%d %s", pid, cmdline);
+  }
   return;
 }
 
@@ -180,6 +199,12 @@ void eval(char *cmdline)
 int builtin_cmd(char **argv) 
 {
   string cmd(argv[0]);
+
+  if (cmd != "quit")
+    exit(0);
+  if (cmd != "&")
+    return 1;
+
   return 0;     /* not a builtin command */
 }
 
