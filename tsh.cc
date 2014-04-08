@@ -160,9 +160,8 @@ void eval(char *cmdline)
   char *argv[MAXARGS];
 
   int bg = parseline(cmdline, argv);
-  if (argv[0] == NULL){
+  if (argv[0] == NULL)
     return;   /* ignore empty lines */
-  }
 
   pid_t pid;
 
@@ -179,9 +178,11 @@ void eval(char *cmdline)
       if (waitpid(pid, &status, 0) < 0)
         unix_error("waitfg:waitpid error");
     }
-    else
+
+    else{
       addjob(jobs, getpid(), BG, argv[0]); 
       printf("[%d] (%d) %s", pid2jid(getpid()), getpid(), cmdline);
+    }
   }
 
   return;
@@ -209,10 +210,7 @@ int builtin_cmd(char **argv)
     return 1;
   }
 
-  if (cmd == "bg")
-    do_bgfg(argv);
-
-  if (cmd == "fg")
+  if (cmd == "bg" or cmd == "fg")
     do_bgfg(argv);
 
   if (cmd == "&"){
