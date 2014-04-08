@@ -167,12 +167,9 @@ void eval(char *cmdline)
   pid_t pid;
 
   if(!builtin_cmd(argv)){
-
     if ((pid = fork()) == 0){
-      addjob(jobs, getpid(), FG, argv[0]); 
       if(execve(argv[0], argv, environ) < 0){
         printf("%s: Command not found.\n", argv[0]);
-        deletejob(jobs, getpid());
         exit(0);
       }
     }
@@ -183,7 +180,8 @@ void eval(char *cmdline)
         unix_error("waitfg:waitpid error");
     }
     else
-      printf("%d %s", pid, cmdline);
+      addjob(jobs, getpid(), BG, argv[0]); 
+      printf("[%d] (%d) %s", pid2jid(getpid()), getpid(), cmdline);
   }
 
   return;
@@ -212,9 +210,11 @@ int builtin_cmd(char **argv)
   }
 
   if (cmd == "bg")
+    do_bgfg(argv);
 
   if (cmd == "fg")
-  // Ignoring singleton &
+    do_bgfg(argv);
+
   if (cmd == "&"){
     return 1;
   }
@@ -299,7 +299,7 @@ void sigchld_handler(int sig)
   pid_t pid;
 
   while ((pid = waitpid(-1, NULL, 0)) > 0)
-    deletejob(jobs, pid);
+    //deletejob(jobs, pid);
 
   if (errno != ECHILD)
     unix_error("waitpid error");
