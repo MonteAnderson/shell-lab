@@ -179,9 +179,10 @@ void eval(char *cmdline)
         unix_error("waitfg:waitpid error");
     }
 
+    // in the background
     else{
       addjob(jobs, getpid(), BG, argv[0]); 
-      printf("[%d] (%d) %s", pid2jid(getpid()), getpid(), cmdline);
+      printf("[%d] (%d) %s\n", pid2jid(getpid()), getpid(), cmdline);
     }
   }
 
@@ -265,6 +266,15 @@ void do_bgfg(char **argv)
   //
   string cmd(argv[0]);
 
+  if (cmd == "bg"){
+    printf("[%d] (%d)\n", pid2jid(getpid()), getpid());
+    jobp->state = BG;
+  }
+
+  if (cmd == "fg"){
+    jobp->state = FG;
+  }
+
   
   return;
 }
@@ -297,7 +307,7 @@ void sigchld_handler(int sig)
   pid_t pid;
 
   while ((pid = waitpid(-1, NULL, 0)) > 0)
-    //deletejob(jobs, pid);
+    deletejob(jobs, pid);
 
   if (errno != ECHILD)
     unix_error("waitpid error");
