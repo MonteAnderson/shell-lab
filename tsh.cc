@@ -16,10 +16,12 @@ using namespace std;
 #include <sys/wait.h>
 #include <errno.h>
 #include <string>
+#include <iostream>
 
 #include "globals.h"
 #include "jobs.h"
 #include "helper-routines.h"
+#include "csapp.h"
 
 //
 // Needed global variable definitions
@@ -167,11 +169,10 @@ void eval(char *cmdline)
   if(!builtin_cmd(argv)){
 
     if ((pid = fork()) == 0){
-      
-      printf("Process: %d\n", getpid());
-      printf("Parent : %d\n", getppid());
+      addjob(jobs, getpid(), FG, argv[0]); 
       if(execve(argv[0], argv, environ) < 0){
         printf("%s: Command not found.\n", argv[0]);
+        deletejob(jobs, getpid());
         exit(0);
       }
     }
@@ -205,7 +206,10 @@ int builtin_cmd(char **argv)
     exit(0);
 
   // Run Jobs if cmd is jobs
-  if (cmd == "jobs")
+  if (cmd == "jobs"){
+    listjobs(jobs);
+    return 1;
+  }
 
   if (cmd == "bg")
 
@@ -263,6 +267,7 @@ void do_bgfg(char **argv)
   //
   string cmd(argv[0]);
 
+  
   return;
 }
 
@@ -291,7 +296,14 @@ void waitfg(pid_t pid)
 //
 void sigchld_handler(int sig)
 {
-  return;
+  pid_t pid;
+
+  while ((pid = waitpid(-1, NULL, 0)) > 0)
+    deletejob(jobs, pid);
+
+  if (errno != ECHILD)
+    unix_error("waitpid error");
+
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -303,8 +315,11 @@ void sigchld_handler(int sig)
 void sigint_handler(int sig)
 {
   //delete job later
-  printf("Shell recieved SIGINT\n");
-  exit(0);
+  //
+  pid_t pid;
+  cout << "Process to be killed: " << pid << endl;
+  printf("Program [%d] recieved SIGINT\n", pid);
+  kill(pid, SIGINT);
 }
 
 /////////////////////////////////////////////////////////////////////////////
