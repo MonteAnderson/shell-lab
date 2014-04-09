@@ -180,6 +180,10 @@ void eval(char *cmdline)
         exit(0);
         }
     }
+    Sigemptyset(&mask);
+    Sigaddset(&mask, SIGCHLD);
+    Sigprocmask(SIG_BLOCK, &mask, NULL);
+
     addjob(jobs, getpid(), BG, argv[0]); 
     // unmask
     Sigprocmask(SIG_UNBLOCK, &mask, NULL);
@@ -293,10 +297,13 @@ void do_bgfg(char **argv)
 //
 void waitfg(pid_t pid)
 {
-  usleep(1000);
   // here we need to wait for the JOB to finish
-  while(1){
-    if (pid != fgpid(jobs))
+  for(;;){
+    
+    if (pid == fgpid(jobs))
+      sleep(0);
+
+    else
       break;
   }
     
