@@ -164,26 +164,34 @@ void eval(char *cmdline)
     return;   /* ignore empty lines */
 
   pid_t pid;
+  sigset_t mask;
 
   if(!builtin_cmd(argv)){
+    // mask before fork
+    Sigemptyset(&mask);
+    Sigaddset(&mask, SIGCHLD);
+    Sigprocmask(SIG_BLOCK, &mask, NULL);
     if ((pid = Fork()) == 0){
-      if(execve(argv[0], argv, environ) < 0){
+      int exec = execve(argv[0], argv, environ);
+      // unmask
+      Sigprocmask(SIG_UNBLOCK, &mask, NULL);
+      if (exec < 0){
         printf("%s: Command not found.\n", argv[0]);
         exit(0);
-      }
+        }
     }
-
+    addjob(jobs, getpid(), BG, argv[0]); 
+    // unmask
+    Sigprocmask(SIG_UNBLOCK, &mask, NULL);
+    
     if(!bg){
       int status;
-      if (waitpid(pid, &status, 0) < 0)
-        unix_error("waitfg:waitpid error");
+      waitfg(pid);
     }
 
     // in the background
-    else{
-      addjob(jobs, getpid(), BG, argv[0]); 
+    else
       printf("[%d] (%d) %s\n", pid2jid(getpid()), getpid(), cmdline);
-    }
   }
 
   return;
@@ -285,6 +293,13 @@ void do_bgfg(char **argv)
 //
 void waitfg(pid_t pid)
 {
+  usleep(1000);
+  // here we need to wait for the JOB to finish
+  while(1){
+    if (pid != fgpid(jobs))
+      break;
+  }
+    
   return;
 }
 
@@ -311,6 +326,8 @@ void sigchld_handler(int sig)
 
   if (errno != ECHILD)
     unix_error("waitpid error");
+
+  return;
 
 }
 
