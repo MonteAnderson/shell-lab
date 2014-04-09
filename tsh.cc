@@ -184,7 +184,7 @@ void eval(char *cmdline)
     Sigaddset(&mask, SIGCHLD);
     Sigprocmask(SIG_BLOCK, &mask, NULL);
 
-    addjob(jobs, getpid(), BG, argv[0]); 
+    addjob(jobs, getpid(), FG, argv[0]); 
     // unmask
     Sigprocmask(SIG_UNBLOCK, &mask, NULL);
     
