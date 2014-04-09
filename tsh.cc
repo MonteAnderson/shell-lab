@@ -171,31 +171,32 @@ void eval(char *cmdline)
     Sigemptyset(&mask);
     Sigaddset(&mask, SIGCHLD);
     Sigprocmask(SIG_BLOCK, &mask, NULL);
-    if ((pid = Fork()) == 0){
+
+    pid = Fork();
+
+    if (pid  == 0){
       int exec = execve(argv[0], argv, environ);
       // unmask
-      Sigprocmask(SIG_UNBLOCK, &mask, NULL);
       if (exec < 0){
         printf("%s: Command not found.\n", argv[0]);
         exit(0);
-        }
+      }
     }
-    Sigemptyset(&mask);
-    Sigaddset(&mask, SIGCHLD);
-    Sigprocmask(SIG_BLOCK, &mask, NULL);
 
-    addjob(jobs, getpid(), FG, argv[0]); 
+    if (bg)
+      addjob(jobs, pid, BG, argv[0]); 
+    else
+      addjob(jobs, pid, FG, argv[0]); 
     // unmask
     Sigprocmask(SIG_UNBLOCK, &mask, NULL);
     
     if(!bg){
-      int status;
       waitfg(pid);
     }
 
     // in the background
     else
-      printf("[%d] (%d) %s\n", pid2jid(getpid()), getpid(), cmdline);
+      printf("[%d] (%d) %s XXXX\n", pid2jid(pid), pid, cmdline);
   }
 
   return;
@@ -301,7 +302,7 @@ void waitfg(pid_t pid)
   for(;;){
     
     if (pid == fgpid(jobs))
-      sleep(0);
+      sleep(1);
 
     else
       break;

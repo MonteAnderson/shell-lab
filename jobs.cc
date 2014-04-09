@@ -56,7 +56,7 @@ int addjob(struct job_t *jobs, pid_t pid, int state, char *cmdline)
 		nextjid = 1;
 	    strcpy(jobs[i].cmdline, cmdline);
   	    if(verbose){
-	        printf("Added job [%d] %d %s\n", jobs[i].jid, jobs[i].pid, jobs[i].cmdline);
+	        printf("Added job [%d] %d %s", jobs[i].jid, jobs[i].pid, jobs[i].cmdline);
             }
             return 1;
 	}
@@ -139,7 +139,7 @@ void listjobs(struct job_t *jobs)
     
     for (i = 0; i < MAXJOBS; i++) {
 	if (jobs[i].pid != 0) {
-	    printf("[%d] (%d) ", jobs[i].jid, jobs[i].pid);
+	    printf("[%d] (%d) \n", jobs[i].jid, jobs[i].pid);
 	    switch (jobs[i].state) {
 		case BG: 
 		    printf("Running ");
