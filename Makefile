@@ -4,7 +4,7 @@ TEAM = NOBODY
 DRIVER = ./sdriver.pl
 TSH = ./tsh
 TSHREF = ./tshref
-TSHARGS = "-p"
+TSHARGS = "-p -v"
 CC = gcc
 CXX = g++
 

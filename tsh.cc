@@ -158,8 +158,8 @@ void eval(char *cmdline)
   // use below to launch a process.
   //
   char *argv[MAXARGS];
-
   int bg = parseline(cmdline, argv);
+
   if (argv[0] == NULL)
     return;   /* ignore empty lines */
 
@@ -175,30 +175,33 @@ void eval(char *cmdline)
     pid = Fork();
 
     if (pid  == 0){
+
+      if (setpgid(0, 0) < 0)
+        unix_error("setgpid error");
+
+
+      Sigprocmask(SIG_UNBLOCK, &mask, NULL);
       int exec = execve(argv[0], argv, environ);
-      // unmask
       if (exec < 0){
         printf("%s: Command not found.\n", argv[0]);
         exit(0);
       }
     }
 
-    if (bg)
-      addjob(jobs, pid, BG, argv[0]); 
-    else
-      addjob(jobs, pid, FG, argv[0]); 
-    // unmask
-    Sigprocmask(SIG_UNBLOCK, &mask, NULL);
-    
-    if(!bg){
+    if (!bg){
+      if (!addjob(jobs, pid, FG, cmdline))
+        return;
+
+      Sigprocmask(SIG_UNBLOCK, &mask, NULL);
       waitfg(pid);
     }
+    else{
+      if (!addjob(jobs, pid, BG, cmdline))
+        return;
 
-    // in the background
-    else
-      printf("[%d] (%d) %s XXXX\n", pid2jid(pid), pid, cmdline);
+      Sigprocmask(SIG_UNBLOCK, &mask, NULL);
+    }
   }
-
   return;
 }
 
@@ -288,7 +291,7 @@ void do_bgfg(char **argv)
     jobp->state = FG;
   }
 
-  
+
   return;
 }
 
@@ -300,14 +303,14 @@ void waitfg(pid_t pid)
 {
   // here we need to wait for the JOB to finish
   for(;;){
-    
+
     if (pid == fgpid(jobs))
-      sleep(1);
+      sleep(0);
 
     else
       break;
   }
-    
+
   return;
 }
 
@@ -328,9 +331,16 @@ void waitfg(pid_t pid)
 void sigchld_handler(int sig)
 {
   pid_t pid;
+  pid_t wpid;
+  int status;
 
-  while ((pid = waitpid(-1, NULL, 0)) > 0)
-    deletejob(jobs, pid);
+  while ((wpid = waitpid(-1, &status, WNOHANG|WUNTRACED)) > 0){
+    if (WIFSTOPPED(status))
+      return;
+    deletejob(jobs, wpid);
+    pid = wpid;
+  }
+
 
   if (errno != ECHILD)
     unix_error("waitpid error");
@@ -369,4 +379,3 @@ void sigtstp_handler(int sig)
 /*********************
  * End signal handlers
  *********************/
-
