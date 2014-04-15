@@ -196,8 +196,10 @@ void eval(char *cmdline)
       waitfg(pid);
     }
     else{
-      if (!addjob(jobs, pid, BG, cmdline))
+      if (!addjob(jobs, pid, BG, cmdline)){
         return;
+      }
+      printf("[%d] (%d) %s", pid2jid(pid), pid, cmdline); 
 
       Sigprocmask(SIG_UNBLOCK, &mask, NULL);
     }
@@ -290,7 +292,6 @@ void do_bgfg(char **argv)
   if (cmd == "fg"){
     jobp->state = FG;
   }
-
 
   return;
 }
