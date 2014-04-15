@@ -306,7 +306,7 @@ void waitfg(pid_t pid)
   for(;;){
 
     if (pid == fgpid(jobs))
-      sleep(0);
+      Sleep(0);
 
     else
       break;
@@ -334,6 +334,11 @@ void sigchld_handler(int sig)
   pid_t pid;
   pid_t wpid;
   int status;
+  
+  sigset_t mask;
+  Sigemptyset(&mask);
+  Sigaddset(&mask, SIGCHLD);
+  Sigprocmask(SIG_BLOCK, &mask, NULL);
 
   while ((wpid = waitpid(-1, &status, WNOHANG|WUNTRACED)) > 0){
     if (WIFSTOPPED(status))
@@ -342,9 +347,12 @@ void sigchld_handler(int sig)
     pid = wpid;
   }
 
+  Sigprocmask(SIG_BLOCK, &mask, NULL);
 
-  //if (errno != ECHILD)
-    //unix_error("waitpid error");
+  if (errno == 0)
+    return;
+  if (errno != ECHILD)
+    unix_error("waitpid error");
 
   return;
 
@@ -358,12 +366,18 @@ void sigchld_handler(int sig)
 //
 void sigint_handler(int sig)
 {
-  //delete job later
-  //
+  sigset_t mask;
+  Sigemptyset(&mask);
+  Sigaddset(&mask, SIGCHLD);
+  Sigprocmask(SIG_BLOCK, &mask, NULL);
+  
   pid_t pid;
   int status;
   printf("Job [%d] (%d) terminated by signal %d\n", pid2jid(fgpid(jobs)),fgpid(jobs), sig);
   kill(fgpid(jobs), SIGINT);
+
+  
+  Sigprocmask(SIG_UNBLOCK, &mask, NULL);
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -374,6 +388,16 @@ void sigint_handler(int sig)
 //
 void sigtstp_handler(int sig)
 {
+  sigset_t mask;
+  Sigemptyset(&mask);
+  Sigaddset(&mask, SIGCHLD);
+  Sigprocmask(SIG_BLOCK, &mask, NULL);
+
+  pid_t pid;
+  int status;
+  printf("Job [%d] (%d) stopped by signal %d\n", pid2jid(fgpid(jobs)),fgpid(jobs), sig);
+  
+  Sigprocmask(SIG_UNBLOCK, &mask, NULL);
   return;
 }
 
