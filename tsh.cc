@@ -219,7 +219,7 @@ void eval(char *cmdline)
 int builtin_cmd(char **argv)
 {
   string cmd(argv[0]);
-  // Exit tsh if cmd is quit
+
   if (cmd == "quit")
     exit(0);
 
@@ -229,8 +229,10 @@ int builtin_cmd(char **argv)
     return 1;
   }
 
-  if (cmd == "bg" or cmd == "fg")
+  if (cmd == "bg" or cmd == "fg"){
     do_bgfg(argv);
+    return 1;
+  }
 
   if (cmd == "&"){
     return 1;
@@ -285,12 +287,13 @@ void do_bgfg(char **argv)
   string cmd(argv[0]);
 
   if (cmd == "bg"){
-    printf("[%d] (%d)\n", pid2jid(getpid()), getpid());
     jobp->state = BG;
+    printf("[%d] (%d)\n", pid2jid(getpid()), getpid());
   }
 
   if (cmd == "fg"){
     jobp->state = FG;
+    waitfg(jobp->pid);
   }
 
   return;
@@ -341,8 +344,11 @@ void sigchld_handler(int sig)
   Sigprocmask(SIG_BLOCK, &mask, NULL);
 
   while ((wpid = waitpid(-1, &status, WNOHANG|WUNTRACED)) > 0){
-    if (WIFSTOPPED(status))
+
+    if (WIFSTOPPED(status)){
       return;
+    }
+
     deletejob(jobs, wpid);
     pid = wpid;
   }
@@ -368,7 +374,7 @@ void sigint_handler(int sig)
 {
   sigset_t mask;
   Sigemptyset(&mask);
-  Sigaddset(&mask, SIGCHLD);
+  Sigaddset(&mask, sig);
   Sigprocmask(SIG_BLOCK, &mask, NULL);
   
   pid_t pid;
@@ -390,12 +396,16 @@ void sigtstp_handler(int sig)
 {
   sigset_t mask;
   Sigemptyset(&mask);
-  Sigaddset(&mask, SIGCHLD);
+  Sigaddset(&mask, sig);
   Sigprocmask(SIG_BLOCK, &mask, NULL);
 
-  pid_t pid;
+  pid_t pid = fgpid(jobs);
   int status;
+
   printf("Job [%d] (%d) stopped by signal %d\n", pid2jid(fgpid(jobs)),fgpid(jobs), sig);
+  kill(-pid, SIGTSTP);
+  
+  getjobpid(jobs, pid)->state = ST;
   
   Sigprocmask(SIG_UNBLOCK, &mask, NULL);
   return;
