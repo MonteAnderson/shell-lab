@@ -360,9 +360,9 @@ void sigint_handler(int sig)
   //delete job later
   //
   pid_t pid;
-  cout << "Process to be killed: " << pid << endl;
-  printf("Program [%d] recieved SIGINT\n", pid);
-  kill(pid, SIGINT);
+  int status;
+  printf("Job [%d] (%d) terminated by signal %d\n", pid2jid(fgpid(jobs)),fgpid(jobs), sig);
+  kill(fgpid(jobs), SIGINT);
 }
 
 /////////////////////////////////////////////////////////////////////////////
