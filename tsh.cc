@@ -189,8 +189,9 @@ void eval(char *cmdline)
     }
 
     if (!bg){
-      if (!addjob(jobs, pid, FG, cmdline))
+      if (!addjob(jobs, pid, FG, cmdline)){
         return;
+      }
 
       Sigprocmask(SIG_UNBLOCK, &mask, NULL);
       waitfg(pid);
@@ -286,9 +287,11 @@ void do_bgfg(char **argv)
   //
   string cmd(argv[0]);
 
+  if (!kill(-jobp->pid, SIGCONT))
+
   if (cmd == "bg"){
+    printf("[%d] (%d)\n", pid2jid(jobp->pid), jobp->pid);
     jobp->state = BG;
-    printf("[%d] (%d)\n", pid2jid(getpid()), getpid());
   }
 
   if (cmd == "fg"){
@@ -309,7 +312,7 @@ void waitfg(pid_t pid)
   for(;;){
 
     if (pid == fgpid(jobs))
-      Sleep(0);
+      ;
 
     else
       break;
@@ -338,22 +341,29 @@ void sigchld_handler(int sig)
   pid_t wpid;
   int status;
   
-  sigset_t mask;
-  Sigemptyset(&mask);
-  Sigaddset(&mask, SIGCHLD);
-  Sigprocmask(SIG_BLOCK, &mask, NULL);
+  // sigset_t mask;
+  // Sigemptyset(&mask);
+  // Sigaddset(&mask, SIGCHLD);
+  // Sigprocmask(SIG_BLOCK, &mask, NULL);
 
   while ((wpid = waitpid(-1, &status, WNOHANG|WUNTRACED)) > 0){
 
-    if (WIFSTOPPED(status)){
+
+    if (WIFSIGNALED(status)){
+      printf("Job [%d] (%d) terminated by signal %d\n", pid2jid(wpid), wpid, WTERMSIG(status));
+      // deletejob(jobs, wpid);
+    }
+
+    else if (WIFSTOPPED(status)){
+      printf("Job [%d] (%d) stopped by signal %d\n", pid2jid(fgpid(jobs)),fgpid(jobs), sig);
+      getjobpid(jobs, wpid)->state = ST;
       return;
     }
 
     deletejob(jobs, wpid);
-    pid = wpid;
   }
 
-  Sigprocmask(SIG_BLOCK, &mask, NULL);
+  // Sigprocmask(SIG_BLOCK, &mask, NULL);
 
   if (errno == 0)
     return;
@@ -372,18 +382,12 @@ void sigchld_handler(int sig)
 //
 void sigint_handler(int sig)
 {
-  sigset_t mask;
-  Sigemptyset(&mask);
-  Sigaddset(&mask, sig);
-  Sigprocmask(SIG_BLOCK, &mask, NULL);
-  
-  pid_t pid;
-  int status;
-  printf("Job [%d] (%d) terminated by signal %d\n", pid2jid(fgpid(jobs)),fgpid(jobs), sig);
-  kill(fgpid(jobs), SIGINT);
 
-  
-  Sigprocmask(SIG_UNBLOCK, &mask, NULL);
+  pid_t pid = fgpid(jobs);
+
+  if (pid != 0)
+    kill(-pid, sig);
+
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -394,20 +398,12 @@ void sigint_handler(int sig)
 //
 void sigtstp_handler(int sig)
 {
-  sigset_t mask;
-  Sigemptyset(&mask);
-  Sigaddset(&mask, sig);
-  Sigprocmask(SIG_BLOCK, &mask, NULL);
 
   pid_t pid = fgpid(jobs);
-  int status;
 
-  printf("Job [%d] (%d) stopped by signal %d\n", pid2jid(fgpid(jobs)),fgpid(jobs), sig);
-  kill(-pid, SIGTSTP);
+  if (pid != 0)
+    kill(-pid, sig);
   
-  getjobpid(jobs, pid)->state = ST;
-  
-  Sigprocmask(SIG_UNBLOCK, &mask, NULL);
   return;
 }
 
