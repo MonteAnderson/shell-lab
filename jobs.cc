@@ -29,7 +29,7 @@ void initjobs(struct job_t *jobs) {
 }
 
 /* maxjid - Returns largest allocated job ID */
-int maxjid(struct job_t *jobs) 
+int maxjid(struct job_t *jobs)
 {
   int i, max=0;
 
@@ -40,7 +40,7 @@ int maxjid(struct job_t *jobs)
 }
 
 /* addjob - Add a job to the job list */
-int addjob(struct job_t *jobs, pid_t pid, int state, char *cmdline) 
+int addjob(struct job_t *jobs, pid_t pid, int state, char *cmdline)
 {
   int i;
 
@@ -55,18 +55,17 @@ int addjob(struct job_t *jobs, pid_t pid, int state, char *cmdline)
       if (nextjid > MAXJOBS)
         nextjid = 1;
       strcpy(jobs[i].cmdline, cmdline);
-      if(verbose){
-        printf("Added job [%d] %d %s", jobs[i].jid, jobs[i].pid, jobs[i].cmdline);
-      }
+      printf("Added job [%d] %d %s", jobs[i].jid, jobs[i].pid, jobs[i].cmdline);
       return 1;
     }
   }
+
   printf("Tried to create too many jobs\n");
   return 0;
 }
 
 /* deletejob - Delete a job whose PID=pid from the job list */
-int deletejob(struct job_t *jobs, pid_t pid) 
+int deletejob(struct job_t *jobs, pid_t pid)
 {
   int i;
 
@@ -106,7 +105,7 @@ struct job_t *getjobpid(struct job_t *jobs, pid_t pid) {
 }
 
 /* getjobjid  - Find a job (by JID) on the job list */
-struct job_t *getjobjid(struct job_t *jobs, int jid) 
+struct job_t *getjobjid(struct job_t *jobs, int jid)
 {
   int i;
 
@@ -119,7 +118,7 @@ struct job_t *getjobjid(struct job_t *jobs, int jid)
 }
 
 /* pid2jid - Map process ID to job ID */
-int pid2jid(pid_t pid) 
+int pid2jid(pid_t pid)
 {
   int i;
 
@@ -133,7 +132,7 @@ int pid2jid(pid_t pid)
 }
 
 /* listjobs - Print the job list */
-void listjobs(struct job_t *jobs) 
+void listjobs(struct job_t *jobs)
 {
   int i;
 
@@ -141,17 +140,17 @@ void listjobs(struct job_t *jobs)
     if (jobs[i].pid != 0) {
       printf("[%d] (%d) ", jobs[i].jid, jobs[i].pid);
       switch (jobs[i].state) {
-        case BG: 
+        case BG:
           printf("Running ");
           break;
-        case FG: 
+        case FG:
           printf("Foreground ");
           break;
-        case ST: 
+        case ST:
           printf("Stopped ");
           break;
         default:
-          printf("listjobs: Internal error: job[%d].state=%d ", 
+          printf("listjobs: Internal error: job[%d].state=%d ",
               i, jobs[i].state);
       }
       printf("%s", jobs[i].cmdline);

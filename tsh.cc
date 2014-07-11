@@ -17,27 +17,14 @@ using namespace std;
 #include <errno.h>
 #include <string>
 #include <iostream>
+#include <uv.h>
 
 #include "globals.h"
 #include "jobs.h"
 #include "helper-routines.h"
 #include "csapp.h"
 
-//
-// Needed global variable definitions
-//
-
 static char prompt[] = "tsh> ";
-int verbose = 0;
-
-//
-// You need to implement the functions eval, builtin_cmd, do_bgfg,
-// waitfg, sigchld_handler, sigstp_handler, sigint_handler
-//
-// The code below provides the "prototypes" for those functions
-// so that earlier code can refer to them. You need to fill in the
-// function bodies below.
-//
 
 void eval(char *cmdline);
 int builtin_cmd(char **argv);
@@ -48,17 +35,12 @@ void sigchld_handler(int sig);
 void sigtstp_handler(int sig);
 void sigint_handler(int sig);
 
-//
-// main - The shell's main routine
-//
 int main(int argc, char **argv)
 {
   int emit_prompt = 1; // emit prompt (default)
 
-  //
   // Redirect stderr to stdout (so that driver will get all output
   // on the pipe connected to stdout)
-  //
   dup2(1, 2);
 
   /* Parse the command line */
@@ -69,7 +51,6 @@ int main(int argc, char **argv)
       usage();
       break;
     case 'v':             // emit additional diagnostic info
-      verbose = 1;
       break;
     case 'p':             // don't print a prompt
       emit_prompt = 0;  // handy for automatic testing
@@ -79,34 +60,18 @@ int main(int argc, char **argv)
     }
   }
 
-  //
   // Install the signal handlers
-  //
-
-  //
-  // These are the ones you will need to implement
-  //
   Signal(SIGINT,  sigint_handler);   // ctrl-c
   Signal(SIGTSTP, sigtstp_handler);  // ctrl-z
   Signal(SIGCHLD, sigchld_handler);  // Terminated or stopped child
-
-  //
-  // This one provides a clean way to kill the shell
-  //
   Signal(SIGQUIT, sigquit_handler);
 
-  //
   // Initialize the job list
-  //
   initjobs(jobs);
 
-  //
   // Execute the shell's read/eval loop
-  //
   for(;;) {
-    //
     // Read command line
-    //
     if (emit_prompt) {
       printf("%s", prompt);
       fflush(stdout);
@@ -114,20 +79,15 @@ int main(int argc, char **argv)
 
     char cmdline[MAXLINE];
 
-    if ((fgets(cmdline, MAXLINE, stdin) == NULL) && ferror(stdin)) {
+    if ((fgets(cmdline, MAXLINE, stdin) == NULL) && ferror(stdin))
       app_error("fgets error");
-    }
-    //
-    // End of file? (did user type ctrl-d?)
-    //
+
     if (feof(stdin)) {
       fflush(stdout);
       exit(0);
     }
 
-    //
     // Evaluate command line
-    //
     eval(cmdline);
     fflush(stdout);
     fflush(stdout);
@@ -150,13 +110,6 @@ int main(int argc, char **argv)
 //
 void eval(char *cmdline)
 {
-  /* Parse command line */
-  //
-  // The 'argv' vector is filled in by the parseline
-  // routine below. It provides the arguments needed
-  // for the execve() routine, which you'll need to
-  // use below to launch a process.
-  //
   char *argv[MAXARGS];
   int bg = parseline(cmdline, argv);
 
@@ -179,29 +132,26 @@ void eval(char *cmdline)
       if (setpgid(0, 0) < 0)
         unix_error("setgpid error");
 
-
       Sigprocmask(SIG_UNBLOCK, &mask, NULL);
-      int exec = execve(argv[0], argv, environ);
-      if (exec < 0){
+
+      if (execve(argv[0], argv, environ) < 0){
         printf("%s: Command not found.\n", argv[0]);
         exit(0);
       }
     }
 
     if (!bg){
-      if (!addjob(jobs, pid, FG, cmdline)){
+      if (!addjob(jobs, pid, FG, cmdline))
         return;
-      }
 
       Sigprocmask(SIG_UNBLOCK, &mask, NULL);
       waitfg(pid);
-    }
-    else{
-      if (!addjob(jobs, pid, BG, cmdline)){
-        return;
-      }
-      printf("[%d] (%d) %s", pid2jid(pid), pid, cmdline); 
 
+    } else{
+      if (!addjob(jobs, pid, BG, cmdline))
+        return;
+
+      printf("[%d] (%d) %s", pid2jid(pid), pid, cmdline);
       Sigprocmask(SIG_UNBLOCK, &mask, NULL);
     }
   }
@@ -235,11 +185,11 @@ int builtin_cmd(char **argv)
     return 1;
   }
 
-  if (cmd == "&"){
+  if (cmd == "&")
     return 1;
-  }
 
-  return 0;     /* not a builtin command */
+
+  return 0;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -248,7 +198,7 @@ int builtin_cmd(char **argv)
 //
 void do_bgfg(char **argv)
 {
-  struct job_t *jobp=NULL;
+  struct job_t *jobp = NULL;
 
   /* Ignore command if no argument */
   if (argv[1] == NULL) {
@@ -259,13 +209,15 @@ void do_bgfg(char **argv)
   /* Parse the required PID or %JID arg */
   if (isdigit(argv[1][0])) {
     pid_t pid = atoi(argv[1]);
+
     if (!(jobp = getjobpid(jobs, pid))) {
       printf("(%d): No such process\n", pid);
       return;
     }
-  }
-  else if (argv[1][0] == '%') {
+
+  } else if (argv[1][0] == '%') {
     int jid = atoi(&argv[1][1]);
+
     if (!(jobp = getjobjid(jobs, jid))) {
       printf("%s: No such job\n", argv[1]);
       return;
@@ -340,7 +292,7 @@ void sigchld_handler(int sig)
   pid_t pid;
   pid_t wpid;
   int status;
-  
+
   // sigset_t mask;
   // Sigemptyset(&mask);
   // Sigaddset(&mask, SIGCHLD);
@@ -403,7 +355,7 @@ void sigtstp_handler(int sig)
 
   if (pid != 0)
     kill(-pid, sig);
-  
+
   return;
 }
 

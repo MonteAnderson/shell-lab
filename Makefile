@@ -14,11 +14,12 @@ CXX = g++
 ##
 CFLAGS = -Wall -O -g
 FILES = $(TSH) ./myspin ./mysplit ./mystop ./myint
+LIBS= -luv
 
 all: $(FILES)
 
 tsh: tsh.o jobs.o helper-routines.o
-	$(CXX) -o tsh tsh.o jobs.o helper-routines.o
+	$(CXX) -o tsh tsh.o jobs.o helper-routines.o $(LIBS)
 
 ##################
 # Regression tests
