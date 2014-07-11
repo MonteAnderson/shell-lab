@@ -31,6 +31,9 @@ int builtin_cmd(char **argv);
 void do_bgfg(char **argv);
 void waitfg(pid_t pid);
 
+static inline void install_handlers();
+static inline void fork_child(char** argv, sigset_t mask);
+
 void sigchld_handler(int sig);
 void sigtstp_handler(int sig);
 void sigint_handler(int sig);
@@ -59,12 +62,6 @@ int main(int argc, char **argv)
       usage();
     }
   }
-
-  // Install the signal handlers
-  Signal(SIGINT,  sigint_handler);   // ctrl-c
-  Signal(SIGTSTP, sigtstp_handler);  // ctrl-z
-  Signal(SIGCHLD, sigchld_handler);  // Terminated or stopped child
-  Signal(SIGQUIT, sigquit_handler);
 
   // Initialize the job list
   initjobs(jobs);
@@ -96,6 +93,13 @@ int main(int argc, char **argv)
   exit(0); //control never reaches here
 }
 
+static inline void install_handlers() {
+  Signal(SIGINT,  sigint_handler);   // ctrl-c
+  Signal(SIGTSTP, sigtstp_handler);  // ctrl-z
+  Signal(SIGCHLD, sigchld_handler);  // Terminated or stopped child
+  Signal(SIGQUIT, sigquit_handler);
+}
+
 /////////////////////////////////////////////////////////////////////////////
 //
 // eval - Evaluate the command line that the user has just typed in
@@ -108,8 +112,23 @@ int main(int argc, char **argv)
 // background children don't receive SIGINT (SIGTSTP) from the kernel
 // when we type ctrl-c (ctrl-z) at the keyboard.
 //
-void eval(char *cmdline)
-{
+
+static inline void fork_child(char** argv, sigset_t* mask){
+  pid_t pid = Fork();
+  if (pid == 0){
+    if (setpgid(0, 0) < 0)
+      unix_error("setgpid error");
+
+    Sigprocmask(SIG_UNBLOCK, mask, NULL);
+
+    if (execve(argv[0], argv, environ) < 0){
+      printf("%s: Command not found.\n", argv[0]);
+      exit(0);
+    }
+  }
+}
+
+void eval(char *cmdline){
   char *argv[MAXARGS];
   int bg = parseline(cmdline, argv);
 
@@ -119,26 +138,14 @@ void eval(char *cmdline)
   pid_t pid;
   sigset_t mask;
 
-  if(!builtin_cmd(argv)){
+  if (!builtin_cmd(argv)){
     // mask before fork
     Sigemptyset(&mask);
     Sigaddset(&mask, SIGCHLD);
     Sigprocmask(SIG_BLOCK, &mask, NULL);
 
-    pid = Fork();
+    fork_child(argv, &mask);
 
-    if (pid  == 0){
-
-      if (setpgid(0, 0) < 0)
-        unix_error("setgpid error");
-
-      Sigprocmask(SIG_UNBLOCK, &mask, NULL);
-
-      if (execve(argv[0], argv, environ) < 0){
-        printf("%s: Command not found.\n", argv[0]);
-        exit(0);
-      }
-    }
 
     if (!bg){
       if (!addjob(jobs, pid, FG, cmdline))
@@ -187,7 +194,6 @@ int builtin_cmd(char **argv)
 
   if (cmd == "&")
     return 1;
-
 
   return 0;
 }
