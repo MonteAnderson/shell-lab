@@ -6,7 +6,6 @@ TSH = ./tsh
 TSHREF = ./tshref
 TSHARGS = "-p"
 CC = gcc
-CXX = g++
 
 ##
 ## This assignment does not depend on ia32 vs. ia64,
@@ -19,7 +18,7 @@ LIBS= -luv
 all: $(FILES)
 
 tsh: tsh.o jobs.o helper-routines.o
-	$(CXX) -o tsh tsh.o jobs.o helper-routines.o $(LIBS)
+	$(CC) -o tsh tsh.o jobs.o helper-routines.o $(LIBS)
 
 ##################
 # Regression tests

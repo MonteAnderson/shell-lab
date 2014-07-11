@@ -1,22 +1,14 @@
-//
-// tsh - A tiny shell program with job control
-//
-// <Put your name and login ID here>
-//
-
 using namespace std;
 
+#include <ctype.h>
+#include <errno.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
-#include <ctype.h>
-#include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <errno.h>
-#include <string>
-#include <iostream>
+#include <unistd.h>
 #include <uv.h>
 
 #include "globals.h"
@@ -62,6 +54,7 @@ int main(int argc, char **argv)
       usage();
     }
   }
+  install_handlers();
 
   // Initialize the job list
   initjobs(jobs);
@@ -113,9 +106,10 @@ static inline void install_handlers() {
 // when we type ctrl-c (ctrl-z) at the keyboard.
 //
 
-static inline void fork_child(char** argv, sigset_t* mask){
-  pid_t pid = Fork();
-  if (pid == 0){
+static inline void spawn_child(pid_t* pid, char** argv, sigset_t* mask) {
+  *pid = Fork();
+
+  if (*pid == 0){
     if (setpgid(0, 0) < 0)
       unix_error("setgpid error");
 
@@ -144,8 +138,7 @@ void eval(char *cmdline){
     Sigaddset(&mask, SIGCHLD);
     Sigprocmask(SIG_BLOCK, &mask, NULL);
 
-    fork_child(argv, &mask);
-
+    spawn_child(&pid, argv, &mask);
 
     if (!bg){
       if (!addjob(jobs, pid, FG, cmdline))
@@ -153,7 +146,6 @@ void eval(char *cmdline){
 
       Sigprocmask(SIG_UNBLOCK, &mask, NULL);
       waitfg(pid);
-
     } else{
       if (!addjob(jobs, pid, BG, cmdline))
         return;
@@ -168,32 +160,25 @@ void eval(char *cmdline){
 
 /////////////////////////////////////////////////////////////////////////////
 //
-// builtin_cmd - If the user has typed a built-in command then execute
-// it immediately. The command name would be in argv[0] and
-// is a C string. We've cast this to a C++ string type to simplify
-// string comparisons; however, the do_bgfg routine will need
-// to use the argv array as well to look for a job number.
+// builtin_cmd - If the user has typed a built-in command then execute it
 //
-int builtin_cmd(char **argv)
-{
-  string cmd(argv[0]);
+int builtin_cmd(char **argv){
 
-  if (cmd == "quit")
+  if (strcmp(argv[0], "quit") == 0)
     exit(0);
 
-  // Run Jobs if cmd is jobs
-  if (cmd == "jobs"){
+  if (strcmp(argv[0], "&") == 0)
+    return 1;
+
+  if (strcmp(argv[0], "jobs") == 0){
     listjobs(jobs);
     return 1;
   }
 
-  if (cmd == "bg" or cmd == "fg"){
+  if (strcmp(argv[0], "bg") == 0 || strcmp(argv[0], "fg") == 0){
     do_bgfg(argv);
     return 1;
   }
-
-  if (cmd == "&")
-    return 1;
 
   return 0;
 }
@@ -234,25 +219,14 @@ void do_bgfg(char **argv)
     return;
   }
 
-  //
-  // You need to complete rest. At this point,
-  // the variable 'jobp' is the job pointer
-  // for the job ID specified as an argument.
-  //
-  // Your actions will depend on the specified command
-  // so we've converted argv[0] to a string (cmd) for
-  // your benefit.
-  //
-  string cmd(argv[0]);
+  if (!kill(-jobp->pid, SIGCONT)){}
 
-  if (!kill(-jobp->pid, SIGCONT))
-
-  if (cmd == "bg"){
+  if (strcmp(argv[0], "bg") == 0){
     printf("[%d] (%d)\n", pid2jid(jobp->pid), jobp->pid);
     jobp->state = BG;
   }
 
-  if (cmd == "fg"){
+  if (strcmp(argv[0], "fg") == 0){
     jobp->state = FG;
     waitfg(jobp->pid);
   }
@@ -264,26 +238,9 @@ void do_bgfg(char **argv)
 //
 // waitfg - Block until process pid is no longer the foreground process
 //
-void waitfg(pid_t pid)
-{
-  // here we need to wait for the JOB to finish
-  for(;;){
-
-    if (pid == fgpid(jobs))
-      ;
-
-    else
-      break;
-  }
-
-  return;
+void waitfg(pid_t pid){
+  while (pid == fgpid(jobs)){}
 }
-
-/////////////////////////////////////////////////////////////////////////////
-//
-// Signal handlers
-//
-
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -293,24 +250,14 @@ void waitfg(pid_t pid)
 //     available zombie children, but doesn't wait for any other
 //     currently running children to terminate.
 //
-void sigchld_handler(int sig)
-{
-  pid_t pid;
-  pid_t wpid;
+void sigchld_handler(int sig){
   int status;
-
-  // sigset_t mask;
-  // Sigemptyset(&mask);
-  // Sigaddset(&mask, SIGCHLD);
-  // Sigprocmask(SIG_BLOCK, &mask, NULL);
+  pid_t wpid;
 
   while ((wpid = waitpid(-1, &status, WNOHANG|WUNTRACED)) > 0){
-
-
-    if (WIFSIGNALED(status)){
+    if (WIFSIGNALED(status))
       printf("Job [%d] (%d) terminated by signal %d\n", pid2jid(wpid), wpid, WTERMSIG(status));
-      // deletejob(jobs, wpid);
-    }
+
 
     else if (WIFSTOPPED(status)){
       printf("Job [%d] (%d) stopped by signal %d\n", pid2jid(wpid), wpid, WSTOPSIG(status));
@@ -321,15 +268,13 @@ void sigchld_handler(int sig)
     deletejob(jobs, wpid);
   }
 
-  // Sigprocmask(SIG_BLOCK, &mask, NULL);
-
   if (errno == 0)
     return;
+
   if (errno != ECHILD)
     unix_error("waitpid error");
 
   return;
-
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -338,25 +283,7 @@ void sigchld_handler(int sig)
 //    user types ctrl-c at the keyboard.  Catch it and send it along
 //    to the foreground job.
 //
-void sigint_handler(int sig)
-{
-
-  pid_t pid = fgpid(jobs);
-
-  if (pid != 0)
-    kill(-pid, sig);
-
-}
-
-/////////////////////////////////////////////////////////////////////////////
-//
-// sigtstp_handler - The kernel sends a SIGTSTP to the shell whenever
-//     the user types ctrl-z at the keyboard. Catch it and suspend the
-//     foreground job by sending it a SIGTSTP.
-//
-void sigtstp_handler(int sig)
-{
-
+void sigint_handler(int sig){
   pid_t pid = fgpid(jobs);
 
   if (pid != 0)
@@ -365,6 +292,17 @@ void sigtstp_handler(int sig)
   return;
 }
 
-/*********************
- * End signal handlers
- *********************/
+/////////////////////////////////////////////////////////////////////////////
+//
+// sigtstp_handler - The kernel sends a SIGTSTP to the shell whenever
+//     the user types ctrl-z at the keyboard. Catch it and suspend the
+//     foreground job by sending it a SIGTSTP.
+//
+void sigtstp_handler(int sig){
+  pid_t pid = fgpid(jobs);
+
+  if (pid != 0)
+    kill(-pid, sig);
+
+  return;
+}
